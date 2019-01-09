@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xml-module="http://www.mulesoft.org/schema/mule/xml-module" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/xml-module http://www.mulesoft.org/schema/mule/xml-module/current/mule-xml-module.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="c3a9f462-eb3e-4b91-ae2b-dad51b4fec64" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<apikit:config outboundHeadersMapName="outboundHeadersMapName" httpStatusVarName="httpStatus" doc:name="Router" doc:id="af184258-895d-41f0-b757-a1781c892e5a" name="Router" raml="saveapplicationApi.raml" >
+		<apikit:flow-mappings >
+			<apikit:flow-mapping resource="/saveapplication" action="post" content-type="application/json" flow-ref="saveapplicationFlow1" />
+		</apikit:flow-mappings>
+	</apikit:config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="6d300bfd-cb9e-439b-a44c-5106fec7f4ec" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="1234" database="mule" />
+	</db:config>
+	<xml-module:config name="XML_Config" doc:name="XML Config" doc:id="226bed42-a7ed-42a9-91d8-f4939f6b5461" />
+	<flow name="saveapplicationFlow" doc:id="72b3614e-8a3f-4217-b3bd-b1bff10e3195" >
+		<http:listener doc:name="Listener" doc:id="1fa86c73-3765-4c4a-a28d-4c03c28e6788" path="/api/*" config-ref="HTTP_Listener_config"/>
+		<apikit:router doc:id="d6f0cd86-45c5-4d35-b49a-194fb6b11b20" config-ref="Router"/>
+	</flow>
+	<flow name="saveapplicationFlow1" doc:id="ceddb7b9-f69c-424e-836e-6b51d0f20bbc" >
+		<set-variable value="#[message.payload.name]" doc:name="Set Variable" doc:id="93361138-56b7-4814-b9ba-89effa0512d2" variableName="name"/>
+		<set-variable value="#[message.payload.age]" doc:name="Set Variable" doc:id="f476b247-1ec2-4d45-ba64-fd2ed09083c0" variableName="age"/>
+		<set-variable value="#[message.payload.address]" doc:name="Set Variable" doc:id="e1979f56-f914-42c4-ad69-bed8e13dff95" variableName="address"/>
+		<set-variable value="#[message.payload.password]" doc:name="Set Variable" doc:id="4e0d079c-d0ce-450d-b736-57da83185b00" variableName="password"/>
+		<set-variable value="#[message.payload.email]" doc:name="Set Variable" doc:id="4f5b5ed5-8966-494c-a6fe-28c7a5a24c47" variableName="email"/>
+		<logger level="INFO" doc:name="Logger" doc:id="f52fb61e-f9d3-4c1f-a4d5-af88f09a51c9" message="#[vars]"/>
+		<ee:transform doc:name="Transform Message" doc:id="f29f2992-0382-46d1-855b-70d0ae3868ab" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	customer @():{
+		name:payload.name,
+		age:payload.age,
+		address:payload.address,
+		password:payload.password,
+		email:payload.email
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<xml-module:xpath-extract doc:name="Xpath extract" doc:id="b30946bc-8215-4a99-ae23-34c47f37846d" config-ref="XML_Config" xpath="/"/>
+		<logger level="INFO" doc:name="Logger" doc:id="3ae06450-48a8-4abb-997b-7e0c18815660" message="payload"/>
+		<choice doc:name="Choice" doc:id="a90b8ed3-46d9-4565-af1c-50e751ea64e1" >
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<logger level="INFO" doc:name="Logger" doc:id="f9c442a4-1b26-41b5-9dd5-06abe5aac334" />
+				<set-variable value="#[payload]" doc:name="Set Variable" doc:id="79f07f60-52b3-48a3-aebe-5532829a1977" variableName="customer"/>
+				<db:insert doc:name="Insert" doc:id="807364cb-68a6-4b76-8a11-cf6ea14ef1aa" config-ref="Database_Config">
+					<db:sql >insert into user(name,age,address,password,email,customer) values(:a,:b,:c,:d,:e,:f)</db:sql>
+					<db:input-parameters ><![CDATA[#[{a:vars.name,b:vars.age,c:vars.address,d:vars.password,e:vars.email,f:vars.customer}]]]></db:input-parameters>
+				</db:insert>
+				<logger level="INFO" doc:name="Logger" doc:id="a662f88b-4a94-493b-822a-57ecdb755415" />
+				<set-payload value="save successfully" doc:name="Set Payload" doc:id="3d4575ca-3fb1-4ad9-a155-a8bf2eb19797" />
+			</when>
+			<otherwise >
+				<set-payload value="Variable con not be empty" doc:name="Set Payload" doc:id="c1ea03cf-c1d7-431b-bc1b-d5b4169c8a2a" />
+			</otherwise>
+		</choice>
+	</flow>
+</mule>

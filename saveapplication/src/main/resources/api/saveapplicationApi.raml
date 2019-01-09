@@ -1,0 +1,17 @@
+#%RAML 1.0
+title: American Flights API
+version: 1.0
+
+/saveapplication:
+  post:
+    body:
+      application/json:     
+        example: |
+          {"name": "张三","age": "22","address": "大力","password": "123456","email":"15829775117@163.com","customer":""}
+    responses:
+      200:
+        body:
+          application/json:
+            example: |
+              {"message": "register success"}
+              
